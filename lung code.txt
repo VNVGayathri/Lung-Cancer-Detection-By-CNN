@@ -1,0 +1,51 @@
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Conv1D, MaxPooling1D, Flatten, Dense, Dropout
+from tensorflow.keras.utils import to_categorical
+
+data = pd.read_csv("/content/lung_cancer_examples.csv")
+
+X = data[['Age', 'Smokes', 'AreaQ', 'Alkhol']].values
+y = data['Result'].values
+
+scaler = StandardScaler()
+X = scaler.fit_transform(X)
+X = X.reshape(X.shape[0], X.shape[1], 1)
+y = to_categorical(y)
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+model = Sequential()
+model.add(Conv1D(32, kernel_size=2, activation='relu', input_shape=(X.shape[1], 1)))
+model.add(MaxPooling1D(pool_size=2))
+model.add(Flatten())
+model.add(Dense(64, activation='relu'))
+model.add(Dropout(0.3))
+model.add(Dense(2, activation='softmax'))
+
+model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+model.fit(X_train, y_train, epochs=5, batch_size=8, validation_data=(X_test, y_test))
+
+loss, accuracy = model.evaluate(X_test, y_test)
+print(f"\nTest Accuracy: {accuracy * 100:.2f}%")
+
+# Predict for new patients
+new_patients = np.array([
+    [45, 10, 5, 3],  # example 1
+    [28, 0, 6, 1],   # example 2
+    [62, 20, 2, 6]   # example 3
+])
+
+new_patients_scaled = scaler.transform(new_patients)
+new_patients_scaled = new_patients_scaled.reshape(new_patients_scaled.shape[0], new_patients_scaled.shape[1], 1)
+predictions = model.predict(new_patients_scaled)
+predicted_labels = np.argmax(predictions, axis=1)
+
+for i, label in enumerate(predicted_labels):
+    if label == 1:
+        print(f"Patient {i+1}: Lung cancer detected (cancerous tissue identified)")
+    else:
+        print(f"Patient {i+1}: No signs of lung cancer (non-cancerous tissue)")
